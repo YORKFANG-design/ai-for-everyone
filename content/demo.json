@@ -1,0 +1,58 @@
+{
+  "id": "demo-001",
+  "date": "2026-09-17",
+  "timezone": "Asia/Shanghai",
+  "status": "demo",
+  "trends": [
+    {
+      "id": "demo-trend-1",
+      "title": "示例：如何读懂 AI 工具更新",
+      "summary": "这是用于展示页面结构的演示内容，不是真实新闻。",
+      "whyItMatters": "正式内容将说明这项变化与你的日常任务有什么关系。",
+      "sourceUrl": null,
+      "sourcePublishedAt": null,
+      "verifiedAt": null
+    },
+    {
+      "id": "demo-trend-2",
+      "title": "示例：如何判断一个 AI 功能是否适合你",
+      "summary": "这是用于展示页面结构的演示内容，不是真实新闻。",
+      "whyItMatters": "正式内容将说明这项变化与你的日常任务有什么关系。",
+      "sourceUrl": null,
+      "sourcePublishedAt": null,
+      "verifiedAt": null
+    },
+    {
+      "id": "demo-trend-3",
+      "title": "示例：使用 AI 前检查信息与隐私",
+      "summary": "这是用于展示页面结构的演示内容，不是真实新闻。",
+      "whyItMatters": "正式内容将说明这项变化与你的日常任务有什么关系。",
+      "sourceUrl": null,
+      "sourcePublishedAt": null,
+      "verifiedAt": null
+    }
+  ],
+  "skill": {
+    "id": "demo-skill-1",
+    "title": "把一段工作记录整理为待办清单",
+    "minutes": 3,
+    "toolRequirements": "可输入文字的 AI 工具；请只使用虚构或已去除敏感信息的记录。实际账号和费用要求待选定工具后核查。",
+    "steps": [
+      "准备一段不含个人资料的演示记录。",
+      "复制提示词并替换记录。",
+      "对照原记录逐项检查，删除 AI 自行补充的信息。"
+    ],
+    "prompt": "请把以下记录整理为待办表格，包含任务、负责人、截止时间。原文未提供的信息写“未明确”，不要猜测。记录：周五前整理会议提纲，由小林负责；海报需要修改，负责人和日期还没定。",
+    "successCriteria": "整理出两项任务；保留已知负责人和日期；其余信息标注未明确。"
+  },
+  "useCase": {
+    "id": "demo-case-1",
+    "title": "演示用途：把零散笔记变成行动清单",
+    "scenario": "虚构团队整理会议后的两项工作。",
+    "inputExample": "周五前小林整理提纲；海报需修改，时间待定。",
+    "outputExample": "整理提纲｜小林｜周五；修改海报｜未明确｜未明确。",
+    "limitations": "这是人工编写的示例，未经真实用户验证。AI 输出需要逐项核对。",
+    "evidenceUrl": null,
+    "verifiedAt": null
+  }
+}
