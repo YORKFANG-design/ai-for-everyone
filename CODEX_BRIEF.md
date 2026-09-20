@@ -1,29 +1,59 @@
-# Codex 开发任务书
+# Codex development brief — AI for Everyone MVP 0.1
 
-## 当前任务状态
+## Current source of truth
 
-初始化已建立产品文档与示例数据。下一项为 Gate 1 审核后的可交互原型。尚无已部署应用，也未开通会员支付。
+The current product definition is the Linear backlog, especially:
+- FAN-5 through FAN-11 — product definition
+- FAN-12 — technical baseline
+- FAN-13 onward — MVP build
 
-## 建议实现方式
+The previous “daily 3 trends + 1 skill + 1 use case” content-subscription concept is legacy and must not guide new implementation.
 
-首个原型采用静态网页、原生 JavaScript 和 CSS，使用仓库中的 JSON 内容，降低依赖和部署成本。服务端、账号与支付待验证后再选型。
+## Implementation baseline
 
-目录建议：index.html、src/、styles/、content/、docs/。实现时补充本地启动和构建说明，不在当前文档中宣称不存在的命令可运行。
+Use:
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Vercel
+- Supabase Auth + Postgres
+- Stripe
+- lightweight analytics
+- server-side AI provider adapter
 
-## 实现任务
+## MVP build order
 
-1. 内容加载与校验：每日 3 条趋势、1 个技能、1 个用途，提供加载失败、缺内容与空列表状态。
-2. 首页及详情：按 docs/GATE_1.md 的顺序实现；来源外链和发布日期可见；示例标识不得隐藏。
-3. 技能练习：提示词复制有成功或失败提示；练习标记可撤销。
-4. 往期和收藏：浏览器本地保存，重载后保留；存储不可用时提示；说明不会跨设备同步。
-5. 适配与可访问性：手机与桌面布局，键盘操作、可见焦点和合理对比度。
-6. 验收：验证首次访问→详情→复制→练习→收藏→重载→取消收藏完整流程，检查坏链接、控制台错误和空状态。
+1. Repository baseline
+2. Landing page
+3. Task picker + input flow
+4. Three guided AI workflows
+5. Result experience
+6. Authentication + persistence
+7. Membership + checkout
+8. Analytics funnel
+9. AI/API cost tracking
+10. End-to-end QA
+11. Test deployment
 
-## 交付要求
+## Engineering rules
 
-- 每个 PR 说明用户可见变化、验证方式与已知限制。
-- 修改前先读取现有文件，保留用户变更，不强制覆盖分支。
-- 不添加真实凭证、个人资料或未经许可的第三方全文内容。
-- 真实内容须通过来源核查；演示数据不能进入正式新闻发布流程。
-- 真实支付、定价及正式上线安排须有负责人审核记录。
-- 验收通过前不把任务标成完成；当前文档没有批准任何商业结果或收费承诺。
+- Read existing files before editing.
+- Keep changes issue-scoped.
+- Use a dedicated branch and PR.
+- Do not commit secrets or personal data.
+- Keep AI and payment keys server-side.
+- Prefer the simplest production-capable architecture.
+- Do not add microservices, Kubernetes, multi-agent orchestration, or custom infrastructure without explicit approval.
+- Do not expose model selection to users.
+- Do not enable autonomous irreversible actions.
+- Any new permission, recurring cost, external tool, or irreversible action requires explicit human approval.
+
+## PR requirements
+
+Every PR should include:
+- Linked FAN issue
+- User-visible changes
+- Verification steps
+- Screenshots for UI changes when applicable
+- Known limitations
+- Whether the change introduces new permissions, recurring cost, or secrets
