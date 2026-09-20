@@ -1,27 +1,62 @@
-# 人人适用的 AI 订阅
+# AI for Everyone · MVP 0.1
 
-AI for Everyone · MVP 0.1
+AI for Everyone is a guided, outcome-oriented AI work assistant for non-technical solo professionals and small-business operators.
 
-每天几分钟，了解 AI 的变化，学会一个马上能用的小技能。
+## Product promise
 
-## 当前状态
+**Tell AI what you need. Get the work done — without learning prompts, switching tools, or becoming an AI expert.**
 
-项目已初始化，处于 Gate 1「产品定位 + 首页结构」审核阶段。当前仓库包含产品与开发基础文档，尚未实现或上线应用。
+The MVP is designed to validate whether users will repeatedly use and pay for a simpler way to complete recurring work with AI.
 
-首版核心：每日 3 条 AI 趋势 + 1 个 3 分钟技能 + 1 个真实 AI 用途。
+## MVP 0.1 scope
 
-## 项目入口
+The first release focuses on:
+- 3 guided workflows:
+  1. Reply to a customer
+  2. Summarize & extract actions
+  3. Plan & organize
+- Natural-language input
+- Ready-to-use AI results
+- Quick actions such as shorter / warmer / more professional
+- First value before registration
+- Lightweight authentication
+- Founding-member checkout
+- Funnel analytics
+- AI/API cost tracking
 
-- [产品定位与首页审核稿](docs/GATE_1.md)
-- [30 天 MVP 路线与验收](docs/ROADMAP.md)
-- [开发任务书](CODEX_BRIEF.md)
-- [内容结构与发布规则](docs/CONTENT_MODEL.md)
-- [演示内容数据](content/demo.json)
+## Product principles
 
-## 协作方式
+- Value before registration
+- Value before payment
+- Guidance before complexity
+- Draft + Suggest before autonomous execution
+- Human approval for important or irreversible actions
+- No model-picker UI
+- No “unlimited AI” promise
+- No multi-agent platform in MVP 0.1
 
-执行方负责需求拆解、实现与验证；项目负责人审核产品方向和关键商业决策。新增功能通过分支和 PR 提交，审核状态应有记录。
+## Technical baseline
 
-演示内容必须标注，不能冒充实时新闻、真实用户反馈或已验证案例。未确定价格，不开放真实支付。
+Recommended MVP stack:
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Vercel
+- Supabase Auth + Postgres
+- Stripe
+- Lightweight product analytics
+- Server-side provider-agnostic AI adapter
 
-初始化日期：2026-09-17。本文档根据交接对话摘要建立，不代表此前项目包已完整迁移。
+See [docs/TECHNICAL_BASELINE.md](docs/TECHNICAL_BASELINE.md).
+
+## Development workflow
+
+Linear Issue → dedicated branch → Codex implementation → PR → preview verification → human approval → merge.
+
+Do not commit real secrets. Use environment variables and keep only variable names in `.env.example`.
+
+## Legacy docs
+
+The original content-subscription concept from 2026-09-17 is retained for historical context only. Files marked **LEGACY** are no longer the source of truth for product development.
+
+Current product requirements are tracked in Linear under FAN-5 through FAN-22.
