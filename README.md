@@ -65,3 +65,4 @@ Current product requirements are tracked in Linear under FAN-5 through FAN-22.
 
 - [FAN-14: first-use flow, handoff contract and QA](docs/FAN-14.md)
 - [FAN-15: guided AI workflows, provider contract and verification](docs/FAN-15.md)
+- [FAN-16: editable result experience, quick actions and QA](docs/FAN-16.md)
