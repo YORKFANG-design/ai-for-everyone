@@ -34,7 +34,7 @@ Task: `reply | summary | plan | other`. Input: 1–12,000 characters after nonem
 
 ## Verification — 2026-09-23
 
-PASS production compilation, TypeScript checking, route generation and optimization. This Windows host restricts child-process pipes, so the successful local build used `NEXT_WORKER_THREADS=1` and `node node_modules/next/dist/bin/next build`. The opt-in config uses worker threads and the TypeScript 5.9.3 library checker. Normal deployment configuration remains the default. The lockfile records installed dependencies; no checks were disabled.
+PASS production compilation, TypeScript checking, route generation and optimization. This Windows host restricts child-process pipes, so the successful local build used `NEXT_WORKER_THREADS=1` and `node node_modules/next/dist/bin/next build`. The opt-in config uses worker threads and the TypeScript 5.9.3 library checker. Normal deployment configuration remains the default. Dependencies were installed and verified during the build; no checks were disabled. Package-manager locking remains a repository-level baseline task rather than part of FAN-14.
 
 PASS 12 real HTTP cases (`node scripts/verify-first-use.cjs` with production server on 127.0.0.1:3000): four task types, four invalid bodies, clarification then resubmission, malformed JSON, oversized streamed body.
 
