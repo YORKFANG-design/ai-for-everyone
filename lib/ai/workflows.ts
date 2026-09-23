@@ -1,4 +1,5 @@
 import type { TaskId, TaskRequest } from "../first-use";
+import { quickActionInstruction, type QuickAction } from "./result-actions";
 
 export type GuidedTaskId = Exclude<TaskId, "other">;
 export type ReplyResult = { kind: "reply"; text: string };
@@ -35,11 +36,16 @@ export function isGuidedTask(task: TaskId): task is GuidedTaskId {
   return task === "reply" || task === "summary" || task === "plan";
 }
 
-export function buildWorkflowMessages(request: TaskRequest) {
+export function buildWorkflowMessages(request: TaskRequest, transform?: { action: QuickAction; currentResult: WorkflowResult }) {
   if (!isGuidedTask(request.task)) throw new Error("unsupported_workflow");
   const spec = workflowSpecs[request.task];
   const context = request.clarification ? "User request:\n" + request.input + "\n\nAdditional context:\n" + request.clarification : "User request:\n" + request.input;
-  return { spec, messages: [{ role: "system", content: spec.system + " Required JSON shape: " + spec.responseShape }, { role: "user", content: context }] };
+  const messages = [{ role: "system", content: spec.system + " Required JSON shape: " + spec.responseShape }, { role: "user", content: context }];
+  if (transform) {
+    messages.push({ role: "system", content: "Revise the existing result. " + quickActionInstruction[transform.action] + " Return the same JSON schema. Do not add new facts." });
+    messages.push({ role: "user", content: "Current result:\n" + JSON.stringify(transform.currentResult) });
+  }
+  return { spec, messages };
 }
 
 function cleanJson(raw: string) {
