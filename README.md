@@ -60,3 +60,7 @@ Do not commit real secrets. Use environment variables and keep only variable nam
 The original content-subscription concept from 2026-09-17 is retained for historical context only. Files marked **LEGACY** are no longer the source of truth for product development.
 
 Current product requirements are tracked in Linear under FAN-5 through FAN-22.
+
+## Implementation records
+
+- [FAN-14: first-use flow, handoff contract and QA](docs/FAN-14.md)
