@@ -35,3 +35,30 @@ jobs:
 
       - name: Verify FAN-15 guided workflows
         run: node scripts/verify-guided-workflows.cjs
+
+      - name: Start FAN-16 test servers
+        env:
+          AI_PROVIDER_API_KEY: "test-key"
+          AI_PROVIDER_BASE_URL: "http://127.0.0.1:4111"
+          AI_PROVIDER_MODEL: "mock-model"
+          AI_PROVIDER_INPUT_USD_PER_1M_TOKENS: "1"
+          AI_PROVIDER_OUTPUT_USD_PER_1M_TOKENS: "2"
+        run: |
+          node scripts/mock-ai-provider.cjs > /tmp/mock-ai.log 2>&1 &
+          npm start -- -p 3000 > /tmp/afe.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mock-ai.log || true
+          cat /tmp/afe.log || true
+          exit 1
+
+      - name: Verify FAN-16 result actions
+        run: node scripts/verify-result-actions.cjs
+
+      - name: Install Chromium for FAN-16 QA
+        run: npx playwright install --with-deps chromium
+
+      - name: FAN-16 desktop and mobile browser QA
+        run: npx playwright test tests/fan16.spec.cjs --reporter=line
