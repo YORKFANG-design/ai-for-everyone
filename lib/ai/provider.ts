@@ -1,4 +1,5 @@
 import { buildWorkflowMessages, parseWorkflowResult, type GuidedTaskId, type WorkflowResult } from "./workflows";
+import type { QuickAction } from "./result-actions";
 import type { TaskRequest } from "../first-use";
 
 type ProviderUsage = { inputTokens: number | null; outputTokens: number | null };
@@ -59,11 +60,11 @@ export function generationConfigured() {
   return Boolean(process.env.AI_PROVIDER_API_KEY?.trim() && process.env.AI_PROVIDER_BASE_URL?.trim() && process.env.AI_PROVIDER_MODEL?.trim());
 }
 
-export async function generateWorkflow(request: TaskRequest & { task: GuidedTaskId }): Promise<GenerationSuccess> {
+export async function generateWorkflow(request: TaskRequest & { task: GuidedTaskId }, transform?: { action: QuickAction; currentResult: WorkflowResult }): Promise<GenerationSuccess> {
   const apiKey = required("AI_PROVIDER_API_KEY");
   const baseUrl = required("AI_PROVIDER_BASE_URL").replace(/\/$/, "");
   const model = required("AI_PROVIDER_MODEL");
-  const { spec, messages } = buildWorkflowMessages(request);
+  const { spec, messages } = buildWorkflowMessages(request, transform);
   const traceId = crypto.randomUUID();
   const started = Date.now();
   const controller = new AbortController();
@@ -84,10 +85,10 @@ export async function generateWorkflow(request: TaskRequest & { task: GuidedTask
       traceId, provider: "openai-compatible", model, latencyMs: Date.now() - started,
       inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens, estimatedCostUsd: estimateCost(parsed.usage)
     };
-    console.info(JSON.stringify({ event: "ai_generation", workflow: request.task, traceId: meta.traceId, model: meta.model, latencyMs: meta.latencyMs, inputTokens: meta.inputTokens, outputTokens: meta.outputTokens, estimatedCostUsd: meta.estimatedCostUsd, ok: true }));
+    console.info(JSON.stringify({ event: "ai_generation", workflow: request.task, action: transform?.action ?? null, traceId: meta.traceId, model: meta.model, latencyMs: meta.latencyMs, inputTokens: meta.inputTokens, outputTokens: meta.outputTokens, estimatedCostUsd: meta.estimatedCostUsd, ok: true }));
     return { result, meta };
   } catch (error) {
-    console.error(JSON.stringify({ event: "ai_generation", workflow: request.task, traceId, model, latencyMs: Date.now() - started, ok: false, error: error instanceof Error ? error.message : "unknown" }));
+    console.error(JSON.stringify({ event: "ai_generation", workflow: request.task, action: transform?.action ?? null, traceId, model, latencyMs: Date.now() - started, ok: false, error: error instanceof Error ? error.message : "unknown" }));
     throw error;
   } finally {
     clearTimeout(timeout);
