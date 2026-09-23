@@ -32,3 +32,6 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
+
+      - name: Verify FAN-15 guided workflows
+        run: node scripts/verify-guided-workflows.cjs
