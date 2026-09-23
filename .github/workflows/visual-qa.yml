@@ -1,0 +1,65 @@
+name: Visual QA
+
+on:
+  push:
+    branches:
+      - fangyork0/fan-13-build-landing-page-mvp
+    paths-ignore:
+      - "artifacts/visual/**"
+
+permissions:
+  contents: write
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fangyork0/fan-13-build-landing-page-mvp
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx -y playwright@1.55.0 install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run dev > /tmp/ai-for-everyone-next.log 2>&1 &
+          echo $! > /tmp/ai-for-everyone-next.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ai-for-everyone-next.log
+          exit 1
+
+      - name: Capture desktop and mobile
+        run: |
+          mkdir -p artifacts/visual
+          npx -y playwright@1.55.0 screenshot --full-page --viewport-size="1440,1200" http://127.0.0.1:3000 artifacts/visual/desktop.png
+          npx -y playwright@1.55.0 screenshot --full-page --viewport-size="390,844" http://127.0.0.1:3000 artifacts/visual/mobile.png
+          npx -y playwright@1.55.0 screenshot --full-page --viewport-size="390,844" http://127.0.0.1:3000/start artifacts/visual/mobile-start.png
+
+      - name: Commit visual QA artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/visual
+          if git diff --cached --quiet; then
+            echo "No screenshot changes"
+            exit 0
+          fi
+          git commit -m "chore: capture FAN-13 visual QA"
+          git push origin HEAD:fangyork0/fan-13-build-landing-page-mvp
