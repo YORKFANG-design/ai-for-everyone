@@ -182,14 +182,20 @@ export default function Home() {
           Less prompting. Less switching. More finished work.
         </h2>
         <div className="mt-10 overflow-hidden rounded-3xl border border-black/8 bg-white">
-          <div className="grid grid-cols-2 border-b border-black/8 bg-[#fafafa] px-5 py-4 text-sm font-semibold">
+          <div className="hidden grid-cols-2 border-b border-black/8 bg-[#fafafa] px-5 py-4 text-sm font-semibold sm:grid">
             <span>Free general-purpose AI</span>
             <span>AI for Everyone</span>
           </div>
           {comparison.map(([a,b]) => (
-            <div key={a} className="grid grid-cols-2 gap-4 border-b border-black/5 px-5 py-4 text-sm last:border-0">
-              <span className="text-neutral-500">{a}</span>
-              <span className="font-medium">{b}</span>
+            <div key={a} className="grid gap-3 border-b border-black/5 px-5 py-5 text-sm last:border-0 sm:grid-cols-2 sm:gap-4 sm:py-4">
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400 sm:hidden">Free AI</span>
+                <span className="text-neutral-500">{a}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400 sm:hidden">AI for Everyone</span>
+                <span className="font-medium">{b}</span>
+              </div>
             </div>
           ))}
         </div>
