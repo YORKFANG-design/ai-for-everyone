@@ -33,7 +33,11 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
           return respond({json:{}});
         }
         if (url.pathname.endsWith('/verify')) {
-          tokenCalls++; assert.deepEqual(request.postDataJSON(), {token_hash:'test-email-hash',type:'email'});
+          tokenCalls++;
+          // The SDK also supplies security metadata; assert the auth contract, not its entire payload.
+          const body=request.postDataJSON();
+          assert.equal(body.token_hash,'test-email-hash');
+          assert.equal(body.type,'email');
           return respond({json:{access_token:token(),refresh_token:'test-refresh',expires_in:3600,token_type:'bearer',user}});
         }
         if (url.pathname.endsWith('/token')) {
