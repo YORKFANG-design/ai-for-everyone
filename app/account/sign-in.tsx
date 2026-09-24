@@ -7,7 +7,8 @@ export default function SignIn({ saveId }: { saveId?: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const callback = () => `${location.origin}/auth/callback${saveId ? `?save=${encodeURIComponent(saveId)}` : ""}`;
+  // Always include a query parameter so Email Templates can append &token_hash safely.
+  const callback = () => `${location.origin}/auth/callback?save=${encodeURIComponent(saveId ?? "")}`;
   async function google() {
     setBusy(true); setError("");
     try {

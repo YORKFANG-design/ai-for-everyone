@@ -29,14 +29,31 @@ export default function Callback() {
     void (async () => {
       try {
         const params = new URLSearchParams(location.search);
+        const fragment = new URLSearchParams(location.hash.slice(1));
         saveId.current = params.get("save");
-        const code = params.get("code");
-        if (params.has("error") || !code) throw new Error("Sign-in was cancelled or the link is invalid. Return to your result and try again.");
-        const sb = getSupabase();
-        const { error } = await sb.auth.exchangeCodeForSession(code);
-        // Remove the one-use code; retries below only retry persistence, never exchange again.
+        const code = params.get("code") || fragment.get("code");
+        const tokenHash = params.get("token_hash");
+        const type = params.get("type");
+        const accessToken = fragment.get("access_token");
+        const refreshToken = fragment.get("refresh_token");
+        // Capture save first and remove credentials before any network request.
         history.replaceState(null, "", `/auth/callback${saveId.current ? `?save=${encodeURIComponent(saveId.current)}` : ""}`);
-        if (error) throw new Error("This sign-in link expired or was opened in another browser. Return to your result and request a new link.");
+        if (params.has("error") || fragment.has("error")) {
+          const expired = (params.get("error_code") || fragment.get("error_code")) === "otp_expired";
+          throw new Error(expired ? "This email link has expired or has already been used. Your result is still safe. Return to your result and request a new email." : "Sign-in was cancelled or the link is invalid. Return to your result and try again.");
+        }
+        if ((tokenHash && (type !== "email" || code || accessToken || refreshToken)) || (code && (accessToken || refreshToken)) || (!!accessToken !== !!refreshToken)) throw new Error("Sign-in was cancelled or the link is invalid. Return to your result and try again.");
+        const sb = getSupabase();
+        // Default ConfirmationURL verifies at Supabase first and returns PKCE code.
+        // Also accept a complete implicit session from default confirmation flows.
+        const authResult = tokenHash
+          ? await sb.auth.verifyOtp({ token_hash: tokenHash, type: "email" })
+          : code ? await sb.auth.exchangeCodeForSession(code)
+          : accessToken && refreshToken ? await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          : null;
+        if (authResult?.error) throw new Error("This sign-in link expired or was opened in another browser. Return to your result and request a new link.");
+        // A reload after successful auth may have no credentials in its URL.
+        // Never trust local session data alone, and never fall back after auth errors.
         const { data, error: userError } = await sb.auth.getUser();
         if (userError || !data.user) throw new Error("We could not verify your account. Please sign in again.");
         userId.current = data.user.id;

@@ -9,7 +9,8 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
   const browser = process.env.FAN17_CDP ? await chromium.connectOverCDP(process.env.FAN17_CDP) : await chromium.launch({headless:true});
   let checks = 0;
   try {
-    for (const width of [390,1440]) {
+    for (const mode of ['email-code','email-hash','email-session','google']) {
+      const width=mode==='google' ? 1440 : 390;
       const context = await browser.newContext({viewport:{width,height:950}});
       const page = await context.newPage();
       const records = new Map();
@@ -30,6 +31,10 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
           callback=url.searchParams.get('redirect_to');
           const body=request.postDataJSON(); assert.equal(body.email,'test@example.com'); assert.ok(body.code_challenge);
           return respond({json:{}});
+        }
+        if (url.pathname.endsWith('/verify')) {
+          tokenCalls++; assert.deepEqual(request.postDataJSON(), {token_hash:'test-email-hash',type:'email'});
+          return respond({json:{access_token:token(),refresh_token:'test-refresh',expires_in:3600,token_type:'bearer',user}});
         }
         if (url.pathname.endsWith('/token')) {
           tokenCalls++; const body=request.postDataJSON(); assert.ok(body.code_verifier);
@@ -70,16 +75,22 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
         await page.getByRole('button',{name:'Email me a sign-in link'}).click();
         await expect(page.getByText(/Check your email/)).toBeVisible();
         assert.ok(callback.includes('/auth/callback?save='));
+        const pendingBefore=await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('afe:pending-save:')).length);
+        await page.goto(callback+'&token_hash=invalid&type=recovery');
+        await expect(page.getByText(/Sign-in was cancelled/)).toBeVisible();
+        assert.equal(tokenCalls,0); assert.equal(saves,0);
+        assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('afe:pending-save:')).length),pendingBefore);
         failSave=true;
-        await page.goto(callback+'&code=test-email-code');
+        const emailCallback=mode==='email-hash' ? callback+'&token_hash=test-email-hash&type=email' : mode==='email-session' ? callback+'#access_token='+token()+'&refresh_token=test-refresh&type=magiclink' : callback+'&code=test-email-code';
+        await page.goto(emailCallback);
         await expect(page.getByText(/We could not save your work/)).toBeVisible();
-        assert.equal(tokenCalls,1);
+        assert.equal(tokenCalls,mode==='email-session' ? 0 : 1);
         assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('afe:pending-save:')).length),1);
         failSave=false; await page.getByRole('button',{name:'Retry saving'}).click();
       } else await page.getByRole('button',{name:'Continue with Google'}).click();
       await page.waitForURL(base+'/work');
       await expect(page.getByRole('link',{name:'Open / reuse workflow'})).toBeVisible();
-      assert.equal(records.size,1); assert.equal([...records.values()][0].result.text,exact); assert.equal(tokenCalls,1);
+      assert.equal(records.size,1); assert.equal([...records.values()][0].result.text,exact); assert.equal(tokenCalls,mode==='email-session' ? 0 : 1);
       assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('afe:pending-save:')).length),0);
       await page.reload(); await page.getByRole('link',{name:'Open / reuse workflow'}).click();
       await expect(page.getByLabel('Editable result')).toHaveValue(exact);
@@ -100,9 +111,12 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
       await page.goto(base+'/auth/callback?error=access_denied');
       await expect(page.getByText(/Sign-in was cancelled/)).toBeVisible();
       assert.equal(saves,before);
+      await page.goto(base+'/auth/callback#error=access_denied&error_code=otp_expired');
+      await expect(page.getByText(/email link has expired/)).toBeVisible();
+      assert.equal(saves,before);
       assert.deepEqual(errors,[]);
       await context.close(); checks++;
     }
-    console.log(`PASS: ${checks} browser journeys (390px Email, 1440px Google): anonymous generation, exact edited-result recovery, PKCE redirect/exchange, failed-save retry without re-exchange, account persistence, return/reuse/update, duplicate prevention, sign-out, cancelled callback, no horizontal overflow or page errors. Auth/provider responses are mocked; real delivery and OAuth remain external gates.`);
+    console.log(`PASS: ${checks} browser journeys (390px Email, 1440px Google): anonymous generation, exact edited-result recovery, Email token-hash verification / Google PKCE exchange, failed-save retry without re-exchange, account persistence, return/reuse/update, duplicate prevention, sign-out, cancelled callback, no horizontal overflow or page errors. Auth/provider responses are mocked; real delivery and OAuth remain external gates.`);
   } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
