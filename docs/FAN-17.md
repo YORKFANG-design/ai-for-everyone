@@ -48,7 +48,9 @@ Google remains an original FAN-17 deliverable, not a passed acceptance item. The
 
 ### Validation and review status
 
-Callback production build and local recovery tests passed. Earlier CI passed on the previously documented commits. The latest CI for `2281c509` completed with failure: https://github.com/YORKFANG-design/ai-for-everyone/actions/runs/35980550533. This is recorded as an unresolved automated-check gate, not a passing result; no further reruns or investigation are performed during this documentation-only closeout at the user's request.
+Callback production build and local recovery tests passed. Full CI passed on commit `709c00998d38dcd301895f37ef1fc0119a913576`: https://github.com/YORKFANG-design/ai-for-everyone/actions/runs/36013607193. All steps passed: production build, database ownership/recovery, guided workflows, result actions, desktop/mobile regression, and all four FAN-17 auth/persistence browser journeys.
 
-PR #6 remains draft and unmerged. Full original-scope Done is not claimed while Google acceptance is deferred and the latest CI is failing. Current-stage acceptance is recorded separately from those remaining gates. No subsequent task is started.
+Two test harness defects were corrected without changing application behavior: verifyOtp assertions now allow SDK security metadata while checking token_hash/type; each new Email callback is opened from the recovered result page, preventing a same-document fragment change from bypassing callback initialization. Failed-save retry, exact pending-result preservation, and restoration remain asserted. Auth/provider endpoints in automated browser tests remain mocked; they do not substitute for live Google acceptance.
+
+PR #6 remains draft and unmerged. Current-stage Email acceptance and automated validation are complete. Full original-scope Done is not claimed while Google acceptance is deferred due to the owner's MFA security delay. No subsequent task is started.
 
