@@ -111,6 +111,8 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
       await page.goto(base+'/auth/callback?error=access_denied');
       await expect(page.getByText(/Sign-in was cancelled/)).toBeVisible();
       assert.equal(saves,before);
+      // An emailed link arrives from another document, not a same-document hash change.
+      await page.goto(base+'/start');
       await page.goto(base+'/auth/callback#error=access_denied&error_code=otp_expired');
       await expect(page.getByText(/email link has expired/)).toBeVisible();
       assert.equal(saves,before);
@@ -120,3 +122,4 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
     console.log(`PASS: ${checks} browser journeys (390px Email, 1440px Google): anonymous generation, exact edited-result recovery, Email token-hash verification / Google PKCE exchange, failed-save retry without re-exchange, account persistence, return/reuse/update, duplicate prevention, sign-out, cancelled callback, no horizontal overflow or page errors. Auth/provider responses are mocked; real delivery and OAuth remain external gates.`);
   } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
