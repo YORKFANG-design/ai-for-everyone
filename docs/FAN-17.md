@@ -33,10 +33,22 @@ Passed in GitHub CI (run 35954009307 on commit 2dbe867; not run locally):
 - `node scripts/verify-fan17-browser.cjs`: desktop Google and mobile Email journeys with mocked auth/provider endpoints, snapshot reload, save failure/retry, return/reuse/update, sign-out and cancelled callback. The test uses the real Supabase SDK; it does not verify live OAuth or email delivery. Requires a build with `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test_only`, then `npm start` on port 3000 and Playwright Chromium. `FAN17_CDP` optionally connects to a dedicated test browser.
 - Existing FAN-16 browser regression adjusted for the now-implemented sign-in boundary.
 
-Local Windows browser process creation failed with access-denied; the app's browser connector was also unavailable. CI now runs the database and browser tests using the committed dependency lock. The initial PR CI passed all steps: https://github.com/YORKFANG-design/ai-for-everyone/actions/runs/35954009307. Follow-up configuration changes require a fresh CI run.
+## Current stage acceptance — 2026-09-24
 
-## Done gates
+Stage accepted: real Email Auth, Supabase persistence, and Recent Work restore. Linear moves to In Review; this is not full original-scope Done.
 
-Not Done. Live public client configuration and hosted migration exist; anonymous table and RPC access correctly return permission denied. Email token-hash callback support is added after a failed live Email acceptance attempt. A fresh live default-template email-to-save journey remains required. Google is not yet enabled. Required before closure: successful browser CI; configured hosted migration and redirect allowlist; actual Google and Email signup/login; exact pre-login result recovery; return in a new session; two real accounts unable to access each other's saved work; desktop/mobile review; human PR approval and merge under the repository workflow. Real AI-provider smoke testing remains the launch gate documented by FAN-15.
+- Default email templates were used, without custom SMTP. A fresh real Email sign-in saved the pre-login edited result to Supabase under the authenticated account.
+- The user confirmed Recent Work visibility and Open / reuse workflow restored the original Chinese text, line breaks, spaces, and edits. The agent also inspected the saved record and reopened result in the browser.
+- Evidence record: `862e426f-368b-461a-a038-4f371065276d`. This was a clearly identified synthetic persistence sample, not a real AI-generation acceptance test.
+- Public configuration and hosted migration are active; anonymous table/RPC access was denied. No service-role key was used.
 
-No secrets, screenshot uploads, billing, subscription or analytics expansion. No external account configuration has been changed. This change adds one production dependency (`@supabase/supabase-js`) and one development-only database test dependency (`@electric-sql/pglite`).
+### Google OAuth — External Blocker / Deferred
+
+Google remains an original FAN-17 deliverable, not a passed acceptance item. The owner reports a Google-account MFA security delay and explicitly defers setup and live validation to conserve usage. Stop Google work until the owner confirms the restriction is resolved and requests continuation. Then enable the Google provider and perform only Google sign-in followed by same-account Recent Work and result restoration. Do not introduce SMTP or expand scope.
+
+### Validation and review status
+
+Callback production build and local recovery tests passed. Earlier CI passed on the previously documented commits. The latest CI for `2281c509` completed with failure: https://github.com/YORKFANG-design/ai-for-everyone/actions/runs/35980550533. This is recorded as an unresolved automated-check gate, not a passing result; no further reruns or investigation are performed during this documentation-only closeout at the user's request.
+
+PR #6 remains draft and unmerged. Full original-scope Done is not claimed while Google acceptance is deferred and the latest CI is failing. Current-stage acceptance is recorded separately from those remaining gates. No subsequent task is started.
+
