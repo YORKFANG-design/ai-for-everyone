@@ -10,6 +10,7 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
   let checks = 0;
   try {
     for (const mode of ['email-code','email-hash','email-session','google']) {
+      console.log(`Starting FAN-17 journey: ${mode}`);
       const width=mode==='google' ? 1440 : 390;
       const context = await browser.newContext({viewport:{width,height:950}});
       const page = await context.newPage();
@@ -84,6 +85,11 @@ const token = () => `${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toSt
         await expect(page.getByText(/Sign-in was cancelled/)).toBeVisible();
         assert.equal(tokenCalls,0); assert.equal(saves,0);
         assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('afe:pending-save:')).length),pendingBefore);
+        // The rejected callback strips its credentials. A session-fragment link to
+        // that same URL would only change the hash and not remount the callback.
+        // Return to the result before simulating a fresh email link navigation.
+        await page.goto(recoverUrl);
+        await expect(page.getByLabel('Editable result')).toHaveValue(exact);
         failSave=true;
         const emailCallback=mode==='email-hash' ? callback+'&token_hash=test-email-hash&type=email' : mode==='email-session' ? callback+'#access_token='+token()+'&refresh_token=test-refresh&type=magiclink' : callback+'&code=test-email-code';
         await page.goto(emailCallback);
