@@ -26,12 +26,19 @@ jobs:
           cache-dependency-path: package.json
 
       - name: Install dependencies
-        run: npm install
+        run: npx --yes pnpm@11.25.0 install --frozen-lockfile
 
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key"
         run: npm run build
+
+      - name: Verify FAN-17 database migration and ownership policies
+        run: |
+          node scripts/verify-persistence.cjs
+          node scripts/verify-save-recovery.cjs
 
       - name: Verify FAN-15 guided workflows
         run: node scripts/verify-guided-workflows.cjs
@@ -62,3 +69,6 @@ jobs:
 
       - name: FAN-16 desktop and mobile browser QA
         run: npx playwright test tests/fan16.spec.cjs --reporter=line
+
+      - name: FAN-17 auth and persistence browser journeys
+        run: node scripts/verify-fan17-browser.cjs

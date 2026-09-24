@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { isTaskId, MAX_ANSWER, MAX_INPUT, parseRequest, tasks, type IntakeResponse, type TaskId, type TaskRequest } from "../../lib/first-use";
 import type { WorkflowResult } from "../../lib/ai/workflows";
 import type { QuickAction } from "../../lib/ai/result-actions";
+import SignIn from "../account/sign-in";
+import { getSupabase } from "../../lib/supabase";
+import { parseWork, pendingWork, persistWork, stageWork, type SavedWork } from "../../lib/saved-work";
 
 const DRAFT_KEY = "afe:first-use:v1";
 const button = "min-h-12 rounded-xl px-5 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-950 disabled:cursor-wait disabled:opacity-50";
@@ -57,12 +60,47 @@ export default function FirstTask() {
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [storageNote, setStorageNote] = useState("");
+  const [signInId, setSignInId] = useState<string | undefined>();
+  const workId = useRef<string | null>(null);
+  const workOwner = useRef<string | undefined>(undefined);
   const heading = useRef<HTMLHeadingElement>(null);
   const lock = useRef(false);
   const selected = tasks.find(item => item.id === task);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const restore = (work: SavedWork) => {
+      workId.current = work.id;
+      workOwner.current = work.ownerId;
+      setTask(work.request.task); setInput(work.request.input); setAnswer(work.request.clarification);
+      setResult(work.result); setStep("result"); setLoaded(true);
+    };
+    if (params.get("work")) {
+      void (async () => {
+        try {
+          const sb = getSupabase();
+          const { data: auth } = await sb.auth.getUser();
+          if (!auth.user) throw new Error("Sign in from Recent Work to open this saved workflow.");
+          const { data, error } = await sb.from("workflow_runs").select("id,request,result").eq("id", params.get("work")!).eq("user_id", auth.user.id).single();
+          const work = parseWork({ ...data, version: 1, ownerId: auth.user.id });
+          if (error || !work) throw new Error("This saved workflow is unavailable for your account.");
+          const { data: currentAuth } = await sb.auth.getUser();
+          if (currentAuth.user?.id !== auth.user.id) throw new Error("Your account changed. Open Recent Work to continue.");
+          restore(work);
+        } catch (e) { setStorageNote(e instanceof Error ? e.message : "Could not load saved work."); setLoaded(true); }
+      })();
+      return;
+    }
     try {
+      const recovery = pendingWork(params.get("recover"));
+      if (recovery) {
+        if (!recovery.ownerId) { restore(recovery); return; }
+        void getSupabase().auth.getUser().then(({ data }) => {
+          if (data.user?.id === recovery.ownerId) restore(recovery);
+          else { setStorageNote("Sign in with the original account from Recent Work to recover this result."); setLoaded(true); }
+        }).catch(() => { setStorageNote("Could not verify the recovery account. Please retry."); setLoaded(true); });
+        return;
+      }
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
         const draft = JSON.parse(saved);
@@ -77,19 +115,32 @@ export default function FirstTask() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      if (task) localStorage.setItem(DRAFT_KEY, JSON.stringify({ version: 1, task, input, clarification: answer }));
+      if (task && !workOwner.current) localStorage.setItem(DRAFT_KEY, JSON.stringify({ version: 1, task, input, clarification: answer }));
       else localStorage.removeItem(DRAFT_KEY);
     } catch { setStorageNote("Your draft could not be saved on this device. Keep this page open."); }
   }, [task, input, answer, loaded]);
 
   useEffect(() => { if (loaded) heading.current?.focus(); }, [step, loaded]);
 
+  useEffect(() => {
+    try {
+      const { data } = getSupabase().auth.onAuthStateChange((_event, session) => {
+        if (workOwner.current && session?.user.id !== workOwner.current) {
+          reset(); setStorageNote("Your account changed. Open Recent Work to continue.");
+        }
+      });
+      return () => data.subscription.unsubscribe();
+    } catch { /* Anonymous generation works without account configuration. */ }
+  }, []);
+
   function choose(id: TaskId) {
+    workId.current = null; workOwner.current = undefined; setSignInId(undefined);
     if (id !== task) { setAnswer(""); setQuestion(""); }
     setTask(id); setStep("input"); setError(""); setNotice(""); setReady(null); setResult(null); setPreviousResult(null);
   }
 
   function reset() {
+    workId.current = null; workOwner.current = undefined; setSignInId(undefined); history.replaceState(null, "", "/start");
     setTask(null); setInput(""); setAnswer(""); setQuestion(""); setReady(null); setResult(null); setPreviousResult(null); setError(""); setNotice(""); setStep("picker");
   }
 
@@ -123,7 +174,7 @@ export default function FirstTask() {
       } else {
         const data = await callGeneration();
         if (data.status === "clarification_required") { setQuestion(data.question); setStep("clarify"); }
-        else { setResult(data.result); setPreviousResult(null); setStep("result"); }
+        else { workId.current = null; workOwner.current = undefined; setSignInId(undefined); setResult(data.result); setPreviousResult(null); setStep("result"); }
       }
     } catch { setError("We could not create your result. Your text is still here. Please try again."); }
     finally { lock.current = false; setBusy(false); }
@@ -131,6 +182,7 @@ export default function FirstTask() {
 
   async function regenerate(action: QuickAction) {
     if (!result || busy || !task) return;
+    setSignInId(undefined);
     setBusy(true); setError(""); setNotice("");
     const before = result;
     try {
@@ -152,16 +204,35 @@ export default function FirstTask() {
     } catch { setError("Copy did not work on this device. You can still select the editable result manually."); }
   }
 
-  function saveEntry() {
-    if (!task) return;
+  async function saveEntry() {
+    const request = requestObject();
+    if (!task || !result || !request || lock.current) return;
+    lock.current = true; setBusy(true); setError(""); setNotice("");
     track("save_workflow_clicked", task);
-    setNotice("Save is the next account step. Your result stays editable here for now.");
+    try {
+      const id = workId.current ?? crypto.randomUUID();
+      const work: SavedWork = { version: 1, id, request, result, ownerId: workOwner.current ?? pendingWork(id)?.ownerId };
+      stageWork(work); workId.current = id;
+      history.replaceState(null, "", `/start?recover=${id}`);
+      const sb = getSupabase();
+      const { data, error } = await sb.auth.getUser();
+      if (!data.user) {
+        if (error && error.name !== "AuthSessionMissingError") throw new Error("We could not check your account. Your result is kept here; please retry.");
+        setSignInId(id); return;
+      }
+      await persistWork(work, data.user.id);
+      workOwner.current = data.user.id;
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      setSignInId(undefined); history.replaceState(null, "", `/start?work=${id}`);
+      setNotice("Saved to your account. Find it in Recent Work.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Saving failed. Your result is still here."); }
+    finally { lock.current = false; setBusy(false); }
   }
 
   const title = step === "picker" ? "What do you want to get done?" : step === "input" ? "Tell us what you need." : step === "clarify" ? "One quick question" : step === "result" ? "Here’s a ready-to-use version" : "Your request is ready";
 
   return <main className="min-h-screen bg-[#f7f7f4] text-neutral-950"><div className="mx-auto max-w-3xl px-5 py-8 sm:px-6 sm:py-12">
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-6"><a href="/" className="rounded font-semibold focus-visible:outline-2 focus-visible:outline-offset-4">AI for Everyone</a><span className="text-sm text-neutral-600">No account needed</span></header>
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-6"><a href="/" className="rounded font-semibold focus-visible:outline-2 focus-visible:outline-offset-4">AI for Everyone</a><a href="/work" className="text-sm underline">Recent Work / Saved Workflows</a></header>
     <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">{step === "picker" ? "01 / Choose a task" : step === "result" ? "03 / Use your result" : step === "ready" ? "Ready for future support" : "02 / Add your context"}</p>
     <h1 ref={heading} tabIndex={-1} className="mt-3 text-4xl font-semibold tracking-tight outline-none sm:text-5xl">{title}</h1>
 
@@ -171,10 +242,11 @@ export default function FirstTask() {
       <button disabled={!loaded} onClick={() => choose("other")} className={`${secondary} mt-4 w-full`}>Something else →</button>
     </> : step === "result" && result ? <>
       <p className="mt-4 leading-7 text-neutral-600">Review it, edit anything you want, then copy it when it feels right.</p>
-      <section className="mt-7 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{selected?.title}</h2><span className="text-xs text-neutral-500">Editable</span></div><EditableResult result={result} onChange={setResult} /></section>
+      <section className="mt-7 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{selected?.title}</h2><span className="text-xs text-neutral-500">Editable</span></div><fieldset disabled={busy}><EditableResult result={result} onChange={value => { setSignInId(undefined); setResult(value); }} /></fieldset></section>
+      {signInId && <SignIn saveId={signInId} />}
       <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Quick actions</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><button disabled={busy} onClick={() => regenerate("shorter")} className={secondary}>Shorter</button><button disabled={busy} onClick={() => regenerate("warmer")} className={secondary}>Warmer</button><button disabled={busy} onClick={() => regenerate("professional")} className={secondary}>More professional</button><button disabled={busy} onClick={() => regenerate("another")} className={secondary}>Another version</button></div></div>
       {error && <p role="alert" className="mt-4 text-sm leading-6 text-red-700">{error}</p>}{notice && <p role="status" className="mt-4 text-sm leading-6 text-neutral-700">{notice}</p>}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row"><button disabled={busy} onClick={copyResult} className={`${button} bg-neutral-950 text-white hover:bg-neutral-800`}>Copy / Use this</button><button disabled={busy} onClick={saveEntry} className={secondary}>Save workflow</button>{previousResult && <button disabled={busy} onClick={() => { setResult(previousResult); setPreviousResult(null); setNotice("Restored the previous version."); }} className={secondary}>Undo last change</button>}</div>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row"><button disabled={busy} onClick={copyResult} className={`${button} bg-neutral-950 text-white hover:bg-neutral-800`}>Copy / Use this</button><button disabled={busy} onClick={saveEntry} className={secondary}>Save workflow</button>{previousResult && <button disabled={busy} onClick={() => { setSignInId(undefined); setResult(previousResult); setPreviousResult(null); setNotice("Restored the previous version."); }} className={secondary}>Undo last change</button>}</div>
       <div className="mt-4 flex flex-wrap gap-4 text-sm"><button disabled={busy} onClick={() => { setStep("input"); setError(""); setNotice(""); }} className="min-h-11 underline underline-offset-4">Add context / edit request</button><button disabled={busy} onClick={reset} className="min-h-11 underline underline-offset-4">Start another task</button></div>
     </> : step === "ready" && ready ? <>
       <p className="mt-4 leading-7 text-neutral-600">Custom tasks are not one of the three guided MVP workflows yet. Your request is preserved for a future workflow.</p>

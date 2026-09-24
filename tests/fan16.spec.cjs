@@ -25,7 +25,7 @@ for (const viewport of [{ name:"mobile", width:390, height:844 }, { name:"deskto
     const clip = await page.evaluate(() => navigator.clipboard.readText());
     expect(clip.length).toBeGreaterThan(10);
     await page.getByRole("button", { name: "Save workflow" }).click();
-    await expect(page.getByText(/Save is the next account step/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to keep your work" })).toBeVisible();
     await page.getByRole("button", { name: "Undo last change" }).click();
     await expect(page.getByText("Restored the previous version.")).toBeVisible();
     if (viewport.name === "mobile") {
