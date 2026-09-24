@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict');
+const ts=require('typescript');
+const fs=require('node:fs');
+const path=require('node:path');
+// Load the real TypeScript recovery module. Only the remote Supabase client is replaced.
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
+const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
+const stored=new Map();
+global.localStorage={getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)};
+let currentUser=owner, failure=false, calls=0, written;
+const fake={auth:{getUser:async()=>({data:{user:currentUser ? {id:currentUser} : null},error:null})},rpc:async(name,args)=>{calls++; assert.equal(name,'save_workflow'); written=args; return {error:failure?new Error('outage'):null};}};
+const clientPath=path.resolve('lib/supabase.ts');
+require.cache[clientPath]={id:clientPath,filename:clientPath,loaded:true,exports:{getSupabase:()=>fake}};
+const {parseWork,stageWork,pendingWork,persistWork}=require('../lib/saved-work.ts');
+(async()=>{
+  const work={version:1,id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',request:{version:1,task:'reply',input:'Follow up on the proposal.',clarification:''},result:{kind:'reply',text:'您好\n  Keep exact spaces.  '}};
+  stageWork(work); assert.deepEqual(pendingWork(work.id).result,work.result);
+  assert.equal(pendingWork('../bad'),null);
+  assert.equal(parseWork({...work,result:{kind:'plan',goal:'bad',steps:[]}}),null);
+  const setItem=localStorage.setItem; localStorage.setItem=()=>{throw new Error('quota');};
+  assert.throws(()=>stageWork(work),/recovery copy/); localStorage.setItem=setItem;
+  currentUser=null; await assert.rejects(()=>persistWork(work,owner),/account changed/); assert.equal(calls,0);
+  currentUser=other; await assert.rejects(()=>persistWork({...work,ownerId:owner},other),/another account/); assert.equal(calls,0);
+  currentUser=owner; failure=true; await assert.rejects(()=>persistWork(work,owner),/could not save/);
+  assert.equal(pendingWork(work.id).ownerId,owner); assert.deepEqual(pendingWork(work.id).result,work.result);
+  failure=false; await persistWork(pendingWork(work.id),owner);
+  assert.equal(pendingWork(work.id),null); assert.equal(calls,2); assert.deepEqual(written.work_result,work.result);
+  assert.equal(Object.hasOwn(written,'user_id'),false);
+  console.log('PASS: recovery preserves exact edits; invalid result rejected; storage quota blocks redirect-ready staging; expired/wrong account cannot write; failed RPC retains and binds recovery; retry removes copy only after success.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
